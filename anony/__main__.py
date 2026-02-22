@@ -1,32 +1,28 @@
-# Copyright (c) 2025 AnonymousX1025
-# Licensed under the MIT License.
-# This file is part of AnonXMusic
-
-
 import asyncio
 import importlib
-
+import threading
+import os
+from flask import Flask
 from pyrogram import idle
 
 from anony import (anon, app, config, db,
                    logger, stop, userbot, yt)
 from anony.plugins import all_modules
 
-import threading
-import os
-from flask import Flask
 
-app = Flask(name)
+# ---------- FLASK SERVER ----------
+web = Flask(__name__)
 
-@app.route("/")
+@web.route("/")
 def home():
     return "AnonXMusic Bot Running"
 
 def run():
-    port = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 10000))
+    web.run(host="0.0.0.0", port=port)
 
 threading.Thread(target=run).start()
+# ----------------------------------
 
 
 async def main():
@@ -56,4 +52,3 @@ if __name__ == "__main__":
         asyncio.get_event_loop().run_until_complete(main())
     except KeyboardInterrupt:
         pass
-
