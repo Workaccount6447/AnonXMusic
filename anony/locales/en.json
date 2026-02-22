@@ -44,7 +44,7 @@
     "help_auth": "<u><b>Auth commands:</b></u>\n<i>Authorized users can control the ongoing stream without being an admin.</i>\n\n/auth: Add a user to the authorized users list.\n/unauth: Remove a user from the authorized users list.",
     "help_blist": "<u><b>Blacklist commands:</b></u>\n<i>Blacklisted chats and users cannot use the bot.</i>\n\n/blacklist [chat_id|user_id]: Add a chat/user to the blacklist.\n/unblacklist [chat_id|user_id]: Remove a chat/user from the blacklist",
     "help_lang": "<u><b>Language commands:</b></u>\n<i>This bot supports multiple languages.</i>\n\n/lang: Change the language of the bot.",
-    "help_ping": "<u><b>Ping commands:</b></u>\n\n/help: Shows the help menu of the bot.\n\n/ping: Check the ping and memory usage of the bot.\n\n/start: Start the bot.\n\n/sudolist: Shows the list of sudo users of the bot.",
+    "help_ping": "<u><b>Ping commands:</b></u>\n\n/help: Shows the help menu of the bot.\n\n/ping: Check the ping and memory usage of the bot.\n\n/start: Start the bot.",
     "help_play": "<u><b>Play commands:</b></u>\n<i>You can play music in the video chat using the following commands.</i>\n\n/play [song name/youtube url/reply to audio]: Play music in the video chat.\n/vplay [song name/youtube url/reply to video]: Play music video in the video chat.\n-f: Force play music in the video chat.\n-v: Plays music video in the video chat.\n\n<b>Example:</b> <code>/play -f -v attention</code>",
     "help_queue": "<u><b>Queue commands:</b></u>\n\n/queue: Shows the currently queued tracks in the queue.",
     "help_stats": "<u><b>Stats commands:</b></u>\n\n/stats: Shows the bot's stats.",
