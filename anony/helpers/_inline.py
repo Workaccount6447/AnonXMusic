@@ -152,7 +152,7 @@ class Inline:
             rows += [
                 [
                     self.ikb(
-                        text=lang["Made By❤️"],
+                        text=lang["source"],
                         url="https://t.me/RoyalityBots",
                     )
                 ]
