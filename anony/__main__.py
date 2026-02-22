@@ -40,3 +40,19 @@ if __name__ == "__main__":
         asyncio.get_event_loop().run_until_complete(main())
     except KeyboardInterrupt:
         pass
+
+import threading
+import os
+from flask import Flask
+
+app = Flask(name)
+
+@app.route("/")
+def home():
+    return "AnonXMusic Bot Running"
+
+def run():
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port)
+
+threading.Thread(target=run).start()
