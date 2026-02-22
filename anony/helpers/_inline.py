@@ -57,7 +57,7 @@ class Inline:
                 ]
             ]
         else:
-            cbs = ["admins", "auth", "blist", "lang", "ping", "play", "queue", "stats", "sudo"]
+            cbs = ["admins", "auth", "blist", "lang", "ping", "play", "queue"]
             buttons = [
                 self.ikb(text=_lang[f"help_{i}"], callback_data=f"help {cb}")
                 for i, cb in enumerate(cbs)
@@ -152,8 +152,8 @@ class Inline:
             rows += [
                 [
                     self.ikb(
-                        text=lang["source"],
-                        url="https://github.com/AnonymousX1025/AnonXMusic",
+                        text=lang["Made By❤️"],
+                        url="https://t.me/RoyalityBots",
                     )
                 ]
             ]
