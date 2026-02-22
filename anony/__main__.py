@@ -12,6 +12,22 @@ from anony import (anon, app, config, db,
                    logger, stop, userbot, yt)
 from anony.plugins import all_modules
 
+import threading
+import os
+from flask import Flask
+
+app = Flask(name)
+
+@app.route("/")
+def home():
+    return "AnonXMusic Bot Running"
+
+def run():
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port)
+
+threading.Thread(target=run).start()
+
 
 async def main():
     await db.connect()
@@ -41,18 +57,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
 
-import threading
-import os
-from flask import Flask
-
-app = Flask(name)
-
-@app.route("/")
-def home():
-    return "AnonXMusic Bot Running"
-
-def run():
-    port = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=port)
-
-threading.Thread(target=run).start()
