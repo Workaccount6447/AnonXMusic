@@ -11,13 +11,13 @@ from anony import app
 
 OWNER_ID = 8420494874
 
------------------- 1. PRE CHECKOUT ------------------
+# ------------------ 1. PRE CHECKOUT ------------------
 
 @app.on_pre_checkout_query()
 async def pre_checkout_handler(_, query):
 await query.answer(ok=True)
 
------------------- 2. DONATION MENU ------------------
+# ------------------ 2. DONATION MENU ------------------
 
 @app.on_callback_query(filters.regex(r"^donate"))
 async def donate_menu(, query):
@@ -72,7 +72,7 @@ except MessageNotModified:
 
 await query.answer()
 
------------------- 3. GENERATE BILL ------------------
+# ------------------ 3. GENERATE BILL ------------------
 
 @app.on_callback_query(filters.regex(r"^bill_(\d+)$"))
 async def send_invoice_bill(, query):
@@ -110,7 +110,7 @@ await query.answer(
 except Exception as e:  
     await query.message.reply_text(f"❌ Error: {e}")
 
------------------- 4. PAYMENT SUCCESS ------------------
+# ------------------ 4. PAYMENT SUCCESS ------------------
 
 @app.on_message(filters.successful_payment)
 async def payment_success(_, message):
