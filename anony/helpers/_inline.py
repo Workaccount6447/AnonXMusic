@@ -152,9 +152,9 @@ class Inline:
             rows += [
                 [
                     self.ikb(
-                        text=lang["source"],
-                        url="https://t.me/RoyalityBots",
-                    )
+    text=lang["source"],
+    callback_data="donate"
+               )
                 ]
             ]
         else:
