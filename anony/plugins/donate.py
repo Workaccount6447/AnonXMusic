@@ -1,4 +1,4 @@
-# Hardcoded the owner value
+
 
 from datetime import datetime
 from pyrogram import filters
