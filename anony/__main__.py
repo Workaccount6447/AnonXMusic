@@ -4,6 +4,7 @@ import threading
 import os
 from flask import Flask
 from pyrogram import idle
+from anony.plugins import donate
 
 from anony import (anon, app, config, db,
                    logger, stop, userbot, yt)
