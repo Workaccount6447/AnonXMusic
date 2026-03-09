@@ -56,6 +56,9 @@ yt = YouTube()
 from anony.helpers import Queue
 queue = Queue()
 
+from anony.core.stream_manager import StreamManager
+stream_mgr = StreamManager()
+
 from anony.core.calls import TgCall
 anon = TgCall()
 
