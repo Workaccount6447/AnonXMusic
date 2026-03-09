@@ -36,12 +36,21 @@ async def start(_, message: types.Message):
     )
 
     key = buttons.start_key(message.lang, private)
-    await message.reply_photo(
-        photo=config.START_IMG,
-        caption=_text,
-        reply_markup=key,
-        quote=not private,
-    )
+
+    # Try sending with photo; fall back to plain text if photo fails (common in groups)
+    try:
+        await message.reply_photo(
+            photo=config.START_IMG,
+            caption=_text,
+            reply_markup=key,
+            quote=not private,
+        )
+    except Exception:
+        await message.reply_text(
+            text=_text,
+            reply_markup=key,
+            quote=not private,
+        )
 
     if private:
         if await db.is_user(message.from_user.id):
@@ -83,3 +92,20 @@ async def _new_member(_, message: types.Message):
                 return
             await utils.send_log(message, True)
             await db.add_chat(message.chat.id)
+
+            # Send start/welcome message when bot is added to a new group
+            _lang = message.lang
+            _text = _lang["start_gp"].format(app.name)
+            key = buttons.start_key(_lang, private=False)
+            try:
+                await message.reply_photo(
+                    photo=config.START_IMG,
+                    caption=_text,
+                    reply_markup=key,
+                )
+            except Exception:
+                await app.send_message(
+                    chat_id=message.chat.id,
+                    text=_text,
+                    reply_markup=key,
+                )
