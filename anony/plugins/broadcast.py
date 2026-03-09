@@ -28,9 +28,12 @@ async def _broadcast(_, message: types.Message):
     chats, groups, users = [], [], []
     sent = await message.reply_text(message.lang["gcast_start"])
 
+    # Send to groups unless explicitly skipped with -nochat
     if "-nochat" not in message.command:
         groups.extend(await db.get_chats())
-    if "-user" in message.command:
+
+    # Send to users unless explicitly skipped with -nouser
+    if "-nouser" not in message.command:
         users.extend(await db.get_users())
 
     chats.extend(groups + users)
@@ -38,7 +41,7 @@ async def _broadcast(_, message: types.Message):
 
     await msg.forward(app.logger)
     await (await app.send_message(
-        chat_id=app.logger, 
+        chat_id=app.logger,
         text=message.lang["gcast_log"].format(
             message.from_user.id,
             message.from_user.mention,
