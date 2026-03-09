@@ -4,143 +4,101 @@
 
 
 import os
-import re
-import yt_dlp
-import random
 import asyncio
-import aiohttp
-from pathlib import Path
 
-from py_yt import Playlist, VideosSearch
+from pyrogram import errors, filters, types
 
-from anony import logger
-from anony.helpers import Track, utils
+from anony import app, db, lang
 
 
-class YouTube:
-    def __init__(self):
-        self.base = "https://www.youtube.com/watch?v="
-        self.cookies = []
-        self.checked = False
-        self.cookie_dir = "anony/cookies"
-        self.warned = False
-        self.regex = re.compile(
-            r"(https?://)?(www\.|m\.|music\.)?"
-            r"(youtube\.com/(watch\?v=|shorts/|playlist\?list=)|youtu\.be/)"
-            r"([A-Za-z0-9_-]{11}|PL[A-Za-z0-9_-]+)([&?][^\s]*)?"
+broadcasting = False
+
+@app.on_message(filters.command(["broadcast"]) & app.sudoers)
+@lang.language()
+async def _broadcast(_, message: types.Message):
+    global broadcasting
+    if not message.reply_to_message:
+        return await message.reply_text(message.lang["gcast_usage"])
+
+    if broadcasting:
+        return await message.reply_text(message.lang["gcast_active"])
+
+    msg = message.reply_to_message
+    count, ucount = 0, 0
+    chats, groups, users = [], [], []
+    sent = await message.reply_text(message.lang["gcast_start"])
+
+    # Send to groups unless explicitly skipped with -nochat
+    if "-nochat" not in message.command:
+        groups.extend(await db.get_chats())
+
+    # Send to users unless explicitly skipped with -nouser
+    if "-nouser" not in message.command:
+        users.extend(await db.get_users())
+
+    chats.extend(groups + users)
+    broadcasting = True
+
+    await msg.forward(app.logger)
+    await (await app.send_message(
+        chat_id=app.logger,
+        text=message.lang["gcast_log"].format(
+            message.from_user.id,
+            message.from_user.mention,
+            message.text,
         )
+    )).pin(disable_notification=False)
+    await asyncio.sleep(5)
 
-    def get_cookies(self):
-        if not self.checked:
-            for file in os.listdir(self.cookie_dir):
-                if file.endswith(".txt"):
-                    self.cookies.append(f"{self.cookie_dir}/{file}")
-            self.checked = True
-        if not self.cookies:
-            if not self.warned:
-                self.warned = True
-                logger.warning("Cookies are missing; downloads might fail.")
-            return None
-        return random.choice(self.cookies)
+    failed = ""
+    for chat in chats:
+        if not broadcasting:
+            await sent.edit_text(message.lang["gcast_stopped"].format(count, ucount))
+            break
 
-    async def save_cookies(self, urls: list[str]) -> None:
-        logger.info("Saving cookies from urls...")
-        async with aiohttp.ClientSession() as session:
-            for url in urls:
-                name = url.split("/")[-1]
-                link = "https://batbin.me/raw/" + name
-                async with session.get(link) as resp:
-                    resp.raise_for_status()
-                    with open(f"{self.cookie_dir}/{name}.txt", "wb") as fw:
-                        fw.write(await resp.read())
-        logger.info(f"Cookies saved in {self.cookie_dir}.")
-
-    def valid(self, url: str) -> bool:
-        return bool(re.match(self.regex, url))
-
-    async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
-        _search = VideosSearch(query, limit=1, with_live=False)
-        results = await _search.next()
-        if results and results["result"]:
-            data = results["result"][0]
-            return Track(
-                id=data.get("id"),
-                channel_name=data.get("channel", {}).get("name"),
-                duration=data.get("duration"),
-                duration_sec=utils.to_seconds(data.get("duration")),
-                message_id=m_id,
-                title=data.get("title")[:25],
-                thumbnail=data.get("thumbnails", [{}])[-1].get("url").split("?")[0],
-                url=data.get("link"),
-                view_count=data.get("viewCount", {}).get("short"),
-                video=video,
-            )
-        return None
-
-    async def playlist(self, limit: int, user: str, url: str, video: bool) -> list[Track | None]:
-        tracks = []
         try:
-            plist = await Playlist.get(url)
-            for data in plist["videos"][:limit]:
-                track = Track(
-                    id=data.get("id"),
-                    channel_name=data.get("channel", {}).get("name", ""),
-                    duration=data.get("duration"),
-                    duration_sec=utils.to_seconds(data.get("duration")),
-                    title=data.get("title")[:25],
-                    thumbnail=data.get("thumbnails")[-1].get("url").split("?")[0],
-                    url=data.get("link").split("&list=")[0],
-                    user=user,
-                    view_count="",
-                    video=video,
-                )
-                tracks.append(track)
-        except Exception:
-            pass
-        return tracks
+            (
+                await msg.copy(chat, reply_markup=msg.reply_markup)
+                if "-copy" in message.text
+                else await msg.forward(chat)
+            )
+            if chat in groups:
+                count += 1
+            else:
+                ucount += 1
+            await asyncio.sleep(0.1)
+        except errors.FloodWait as fw:
+            await asyncio.sleep(fw.value + 30)
+        except Exception as ex:
+            failed += f"{chat} - {ex}\n"
+            continue
 
-    async def download(self, video_id: str, video: bool = False) -> str | None:
-        url = self.base + video_id
-        ext = "mp4" if video else "webm"
-        filename = f"downloads/{video_id}.{ext}"
+    text = message.lang["gcast_end"].format(count, ucount)
+    if failed:
+        with open("errors.txt", "w") as f:
+            f.write(failed)
+        await message.reply_document(
+            document="errors.txt",
+            caption=text,
+        )
+        os.remove("errors.txt")
+    broadcasting = False
+    await sent.edit_text(text)
 
-        if Path(filename).exists():
-            return filename
 
-        cookie = self.get_cookies()
-        base_opts = {
-            "outtmpl": "downloads/%(id)s.%(ext)s",
-            "quiet": True,
-            "noplaylist": True,
-            "geo_bypass": True,
-            "no_warnings": True,
-            "overwrites": False,
-            "nocheckcertificate": True,
-            "cookiefile": cookie,
-        }
+@app.on_message(filters.command(["stop_gcast", "stop_broadcast"]) & app.sudoers)
+@lang.language()
+async def _stop_gcast(_, message: types.Message):
+    global broadcasting
+    if not broadcasting:
+        return await message.reply_text(message.lang["gcast_inactive"])
 
-        if video:
-            ydl_opts = {
-                **base_opts,
-                "format": "(bestvideo[height<=?720][width<=?1280][ext=mp4])+(bestaudio)",
-                "merge_output_format": "mp4",
-            }
-        else:
-            ydl_opts = {
-                **base_opts,
-                "format": "bestaudio[ext=webm][acodec=opus]",
-            }
-
-        def _download():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                try:
-                    ydl.download([url])
-                except (yt_dlp.utils.DownloadError, yt_dlp.utils.ExtractorError):
-                    if cookie: self.cookies.remove(cookie)
-                    return None
-                except Exception as ex:
-                    logger.warning("Download failed: %s", ex)
-                    return None
-            return filename
-
-        return await asyncio.to_thread(_download)
+    broadcasting = False
+    await (await app.send_message(
+        chat_id=app.logger,
+        text=message.lang["gcast_stop_log"].format(
+            message.from_user.id,
+            message.from_user.mention
+        )
+    )).pin(disable_notification=False)
+    await message.reply_text(message.lang["gcast_stop"])
