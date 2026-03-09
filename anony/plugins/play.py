@@ -116,12 +116,32 @@ async def play_hndlr(
             return
 
     if not file.file_path:
-        fname = f"downloads/{file.id}.{'mp4' if video else 'webm'}"
-        if Path(fname).exists():
-            file.file_path = fname
-        else:
+        # For YouTube audio: use segment streaming — extracts URL then fetches
+        # only the first 30 s, so playback starts in ~2-3 s.
+        # For video or Telegram files: use regular full download.
+        if not video and file.id:
             await sent.edit_text(m.lang["play_downloading"])
-            file.file_path = await yt.download(file.id, video=video)
+            stream_url = await yt.get_stream_url(file.id)
+            if stream_url:
+                seg_path = await stream_mgr.prepare(
+                    m.chat.id, file.id, stream_url, file.duration_sec
+                )
+                if seg_path:
+                    file.file_path = seg_path
+
+        # Fallback to full download if streaming prep failed, or for video
+        if not file.file_path:
+            fname = f"downloads/{file.id}.{'mp4' if video else 'webm'}"
+            if Path(fname).exists():
+                file.file_path = fname
+            else:
+                await sent.edit_text(m.lang["play_downloading"])
+                file.file_path = await yt.download(file.id, video=video)
+
+    if not file.file_path:
+        return await sent.edit_text(
+            m.lang["play_not_found"].format(config.SUPPORT_CHAT)
+        )
 
     await anon.play_media(chat_id=m.chat.id, message=sent, media=file)
     if not tracks:
