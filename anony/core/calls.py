@@ -11,7 +11,7 @@ from pyrogram.types import InputMediaPhoto, Message
 from pytgcalls import PyTgCalls, exceptions, types
 from pytgcalls.pytgcalls_session import PyTgCallsSession
 
-from anony import app, config, db, lang, logger, queue, stream_mgr, userbot, yt
+from anony import app, config, db, lang, logger, queue, userbot, yt
 from anony.helpers import Media, Track, buttons, thumb
 
 
@@ -33,8 +33,6 @@ class TgCall(PyTgCalls):
         client = await db.get_assistant(chat_id)
         queue.clear(chat_id)
         await db.remove_call(chat_id)
-        # Cancel any active segment stream
-        stream_mgr.stop(chat_id)
 
         try:
             await client.leave_call(chat_id, close=False)
@@ -143,48 +141,9 @@ class TgCall(PyTgCalls):
 
 
     async def play_next(self, chat_id: int) -> None:
-        """
-        Called when a stream ends.
-
-        Two cases:
-          A) A song segment just finished → play the next segment of the same song.
-          B) The entire song finished (or no segments left) → advance the queue.
-        """
-        # Case A: there are more segments of the current song
-        if stream_mgr.is_active(chat_id) and stream_mgr.has_more(chat_id):
-            seg_path = await stream_mgr.next_segment(chat_id)
-            if seg_path:
-                media = queue.get_current(chat_id)
-                if media:
-                    media.file_path = seg_path
-                    client = await db.get_assistant(chat_id)
-                    stream = types.MediaStream(
-                        media_path=seg_path,
-                        audio_parameters=types.AudioQuality.HIGH,
-                        audio_flags=types.MediaStream.Flags.REQUIRED,
-                        video_flags=types.MediaStream.Flags.IGNORE,
-                    )
-                    try:
-                        await client.play(
-                            chat_id=chat_id,
-                            stream=stream,
-                            config=types.GroupCallConfig(auto_start=False),
-                        )
-                    except Exception as ex:
-                        logger.warning("Segment play error in %s: %s", chat_id, ex)
-                        await self._advance_queue(chat_id)
-                    return
-
-        # Case B: song finished — stop its stream and advance the queue
-        stream_mgr.stop(chat_id)
-        await self._advance_queue(chat_id)
-
-
-    async def _advance_queue(self, chat_id: int) -> None:
-        """Pop the current song and start the next one in the queue."""
         media = queue.get_next(chat_id)
         try:
-            if media and media.message_id:
+            if media.message_id:
                 await app.delete_messages(
                     chat_id=chat_id,
                     message_ids=media.message_id,
@@ -199,25 +158,13 @@ class TgCall(PyTgCalls):
 
         _lang = await lang.get_lang(chat_id)
         msg = await app.send_message(chat_id=chat_id, text=_lang["play_next"])
-
         if not media.file_path:
-            # Use segment streaming for YouTube tracks
-            if media.id and not media.id.startswith("tg_"):
-                stream_url = await yt.get_stream_url(media.id)
-                if stream_url:
-                    seg_path = await stream_mgr.prepare(
-                        chat_id, media.id, stream_url, media.duration_sec
-                    )
-                    if seg_path:
-                        media.file_path = seg_path
-            # Fallback: full download (Telegram files, video, etc.)
+            media.file_path = await yt.download(media.id, video=media.video)
             if not media.file_path:
-                media.file_path = await yt.download(media.id, video=media.video)
-                if not media.file_path:
-                    await self.stop(chat_id)
-                    return await msg.edit_text(
-                        _lang["error_no_file"].format(config.SUPPORT_CHAT)
-                    )
+                await self.stop(chat_id)
+                return await msg.edit_text(
+                    _lang["error_no_file"].format(config.SUPPORT_CHAT)
+                )
 
         media.message_id = msg.id
         await self.play_media(chat_id, msg, media)
@@ -251,3 +198,4 @@ class TgCall(PyTgCalls):
             self.clients.append(client)
             await self.decorators(client)
         logger.info("PyTgCalls client(s) started.")
+      
