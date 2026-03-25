@@ -100,7 +100,6 @@ class YouTube:
         return tracks
 
     async def download(self, video_id: str, video: bool = False) -> str | None:
-        """Full download — used for video and queued tracks."""
         url = self.base + video_id
         ext = "mp4" if video else "webm"
         filename = f"downloads/{video_id}.{ext}"
@@ -118,8 +117,6 @@ class YouTube:
             "overwrites": False,
             "nocheckcertificate": True,
             "cookiefile": cookie,
-            "http_chunk_size": 5 * 1024 * 1024,
-            "concurrent_fragment_downloads": 4,
         }
 
         if video:
@@ -131,52 +128,19 @@ class YouTube:
         else:
             ydl_opts = {
                 **base_opts,
-                "format": "bestaudio[ext=webm][acodec=opus]/bestaudio",
+                "format": "bestaudio[ext=webm][acodec=opus]",
             }
 
-        def _dl():
+        def _download():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 try:
                     ydl.download([url])
                 except (yt_dlp.utils.DownloadError, yt_dlp.utils.ExtractorError):
-                    if cookie:
-                        try:
-                            self.cookies.remove(cookie)
-                        except ValueError:
-                            pass
+                    if cookie: self.cookies.remove(cookie)
                     return None
                 except Exception as ex:
                     logger.warning("Download failed: %s", ex)
                     return None
             return filename
 
-        return await asyncio.to_thread(_dl)
-
-    async def get_stream_url(self, video_id: str) -> str | None:
-        """
-        Extract the direct audio stream URL from YouTube without downloading.
-        Used by StreamManager to fetch segments via ffmpeg on demand.
-        """
-        url = self.base + video_id
-        cookie = self.get_cookies()
-
-        ydl_opts = {
-            "quiet": True,
-            "no_warnings": True,
-            "noplaylist": True,
-            "geo_bypass": True,
-            "nocheckcertificate": True,
-            "cookiefile": cookie,
-            "format": "bestaudio[ext=webm][acodec=opus]/bestaudio",
-        }
-
-        def _extract():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                try:
-                    info = ydl.extract_info(url, download=False)
-                    return info.get("url")
-                except Exception as ex:
-                    logger.warning("URL extraction failed for %s: %s", video_id, ex)
-                    return None
-
-        return await asyncio.to_thread(_extract)
+        return await asyncio.to_thread(_download)
